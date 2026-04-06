@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from app.db.database import engine, Base
-from app.models import user
+from app.routers import auth
 
 # Create tables based on models
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Smart Document System")
+
+app.include_router(auth.router)
 
 @app.get("/")
 async def root():
