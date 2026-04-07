@@ -5,6 +5,7 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin
 from app.core.security import hash_password, verify_password
 from app.core.auth import create_access_token
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -30,6 +31,25 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "User registered successfully"}
 
 @router.post('/login')
+async def login(user: OAuth2PasswordRequestForm = Depends(), 
+                db: Session = Depends(get_db)):
+
+    db_user = db.query(User).filter(User.email == user.username).first()
+
+    if not db_user or not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # ✅ Create JWT token with "sub"
+    token = create_access_token({"sub": db_user.email})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+'''
+@router.post('/login')
 async def login(user: UserLogin, db: Session = Depends(get_db)):
 
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -43,3 +63,4 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer"
     }
+'''
