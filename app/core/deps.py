@@ -1,11 +1,12 @@
-from fastapi import Depends,HTTPException
-from jose import jwt,JWTError
-from sqlalchemy.orm import Session
-from app.db.database import SessionLocal,get_db
-from app.models.user import User
-import os
-from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+import os
+
+from app.db.database import get_db
+from app.models.user import User
 
 load_dotenv()
 
@@ -14,20 +15,20 @@ ALGORITHM = os.getenv("ALGORITHM")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-def get_current_user(token:str=Depends(oauth2_scheme)):
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
     try:
-        payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
-        email = payload.get("sub")
-
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
         if email is None:
-            raise HTTPException(status_code=401,detail="Invalid token")
-        
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     except JWTError:
-        raise HTTPException(status_code=401,detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-    db = next(get_db())
     user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    if user is None:
-        raise HTTPException(status_code=404,detail="User not found")
     return user
